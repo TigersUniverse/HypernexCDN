@@ -1,6 +1,7 @@
 package main
 
 import (
+	"HypernexCDN/api"
 	"HypernexCDN/cdn"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ func main() {
 		return
 	}
 	cdn.CreateSession(config.AWS_key, config.AWS_secret, config.AWS_endpoint, config.AWS_region, config.AWS_bucket)
+	cdn.ConnectToMongo(config.Mongo_URI)
+	api.Initialize(config.API_Server)
 	router := mux.NewRouter()
 	cdn.CreateRoutes(router)
 	err := http.ListenAndServe(":3333", router)

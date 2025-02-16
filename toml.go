@@ -1,17 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"github.com/pelletier/go-toml/v2"
 	"os"
 )
 
 type CDNConfig struct {
+	API_Server   string
 	AWS_key      string
 	AWS_secret   string
 	AWS_endpoint string
 	AWS_region   string
 	AWS_bucket   string
+	Mongo_URI    string
 }
 
 var config CDNConfig
@@ -34,7 +35,6 @@ func loadConfig() bool {
 		if configerr != nil {
 			panic(configerr)
 		}
-		fmt.Println(string(b))
 		fileerr := os.WriteFile("config.toml", b, 0600)
 		if fileerr != nil {
 			panic(fileerr)
