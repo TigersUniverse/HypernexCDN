@@ -7,10 +7,17 @@ import (
 	"github.com/gorilla/mux"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 )
 
 var allowAnyGameServer = false
+var validExtensions = [][]string{
+	{".jpg", ".jpeg", ".gif", ".png", ".mp4"},
+	{".hna"},
+	{".hnw"},
+	{".js", ".lua"},
+}
 
 func CreateRoutes(r *mux.Router) {
 	a, err := api.GetApiResponse[api_responses.AllowAnyGameServer]("allowAnyGameServer")
@@ -21,7 +28,6 @@ func CreateRoutes(r *mux.Router) {
 	r.HandleFunc("/file/{userid}/{fileid}", getFile).Methods("GET")
 	r.HandleFunc("/file/{userid}/{fileid}/{filetoken}", getFileToken).Methods("GET")
 	r.HandleFunc("/file/{userid}/{fileid}/{gameServerId}/{gameServerToken}", getServerScript).Methods("GET")
-	// TODO: Add other file endpoints
 	r.HandleFunc("/upload", uploadHandler).Methods("POST")
 }
 
@@ -208,39 +214,75 @@ func getServerScript(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, msg(false, "No permissions!"), http.StatusForbidden)
 }
 
+func validExtension(extension string) bool {
+	for _, exts := range validExtensions {
+		for _, ext := range exts {
+			if ext == extension {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		http.Error(w, msg(false, "Invalid request method"), http.StatusMethodNotAllowed)
 		return
 	}
-	// TODO: Set memory max correctly
-	err := r.ParseMultipartForm(10000)
+	err := r.ParseMultipartForm(1 << 30)
 	if err != nil {
-		http.Error(w, "Error parsing form", http.StatusBadRequest)
+		http.Error(w, msg(false, "Request too large!"), http.StatusBadRequest)
 		return
 	}
 	userid := r.FormValue("userid")
 	tokenContent := r.FormValue("tokenContent")
 	if userid == "" || tokenContent == "" {
-		http.Error(w, "Missing required parameters", http.StatusBadRequest)
+		http.Error(w, msg(false, "Missing required parameters"), http.StatusBadRequest)
+		return
+	}
+	userdata := GetUserData(userid)
+	if userdata == nil {
+		http.Error(w, msg(false, "Invalid user Id"), http.StatusBadRequest)
+		return
+	}
+	valid := false
+	for i := 0; i < len(userdata.AccountTokens); i++ {
+		proposedToken := userdata.AccountTokens[i]
+		validToken := tokenContent == proposedToken.Content && proposedToken.IsValid()
+		if validToken {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		http.Error(w, msg(false, "Invalid user token"), http.StatusBadRequest)
 		return
 	}
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, "Error retrieving file", http.StatusBadRequest)
+		http.Error(w, msg(false, "Error retrieving file"), http.StatusBadRequest)
 		return
 	}
 	err = file.Close()
 	if err != nil {
-		http.Error(w, "Error closing file", http.StatusBadRequest)
+		http.Error(w, msg(false, "Error closing file"), http.StatusInternalServerError)
 		return
 	}
-	// TODO: Sanitize file name and verify file type
-	filePath := bucket + "/" + userid + "/" + fileHeader.Filename
+	extension := filepath.Ext(fileHeader.Filename)
+	if !validExtension(extension) {
+		http.Error(w, msg(false, "Invalid extension"), http.StatusBadRequest)
+		return
+	}
+	filePath := bucket + "/" + userdata.Id + "/" + fileHeader.Filename
 	err = UploadToS3(file, filePath)
 	if err != nil {
 		http.Error(w, "Failed to upload file", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	_, errf := fmt.Fprintf(w, msg(true, "File uploaded!"))
+	if errf != nil {
+		fmt.Println(errf)
+	}
 }
