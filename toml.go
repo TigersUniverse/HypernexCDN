@@ -6,16 +6,14 @@ import (
 )
 
 type CDNConfig struct {
-	API_Server     string
-	AWS_key        string
-	AWS_secret     string
-	AWS_endpoint   string
-	AWS_region     string
-	AWS_bucket     string
-	Mongo_URI      string
-	REDIS_Address  string
-	REDIS_Password string
-	REDIS_DB       int
+	API_Server    string
+	AWS_key       string
+	AWS_secret    string
+	AWS_endpoint  string
+	AWS_region    string
+	AWS_bucket    string
+	Mongo_URI     string
+	REDIS_Address string
 }
 
 var config CDNConfig

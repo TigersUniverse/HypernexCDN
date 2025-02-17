@@ -12,12 +12,12 @@ import (
 var cts = context.Background()
 var rdb *redis.Client
 
-func StartRedisClient(address string, password string, db int) {
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     address,
-		Password: password,
-		DB:       db,
-	})
+func StartRedisClient(address string) {
+	opt, opterr := redis.ParseURL(address)
+	if opterr != nil {
+		panic(opterr)
+	}
+	rdb = redis.NewClient(opt)
 	_, err := rdb.Ping(cts).Result()
 	if err != nil {
 		panic(err)

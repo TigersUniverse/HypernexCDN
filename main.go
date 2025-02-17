@@ -18,7 +18,7 @@ func main() {
 	}
 	cdn.CreateSession(config.AWS_key, config.AWS_secret, config.AWS_endpoint, config.AWS_region, config.AWS_bucket)
 	cdn.ConnectToMongo(config.Mongo_URI)
-	cdn.StartRedisClient(config.REDIS_Address, config.REDIS_Password, config.REDIS_DB)
+	cdn.StartRedisClient(config.REDIS_Address)
 	api.Initialize(config.API_Server)
 	router := mux.NewRouter()
 	cdn.CreateRoutes(router)
