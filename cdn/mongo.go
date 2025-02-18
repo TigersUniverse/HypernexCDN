@@ -106,6 +106,40 @@ func GetWorldMetaFromFileId(userid string, fileid string) *search.WorldMeta {
 	return &result
 }
 
+func GetUploadData(userid string) *api.UserUploads {
+	filter := bson.M{"UserId": userid}
+	var result api.UserUploads
+	err := uploadsCollection.FindOne(context.TODO(), filter).Decode(&result)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			fmt.Println("User uploads not found!")
+			return nil
+		} else {
+			panic(err)
+		}
+	}
+	return &result
+}
+
+func UpdateUploadData(data *api.UserUploads) {
+	filter := bson.M{"UserId": data.UserId}
+	var result api.UserUploads
+	err := uploadsCollection.FindOne(context.TODO(), filter).Decode(&result)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			fmt.Println("User uploads not found!")
+		} else {
+			panic(err)
+		}
+	} else {
+		update := bson.D{{"$set", data}}
+		_, err2 := uploadsCollection.UpdateOne(context.TODO(), filter, update)
+		if err2 != nil {
+			panic(err2)
+		}
+	}
+}
+
 func GetOrCreatePopularity(id string) *api.PopularityObject {
 	var collection *mongo.Collection
 	split := strings.Split(id, "_")[0]
@@ -127,7 +161,6 @@ func GetOrCreatePopularity(id string) *api.PopularityObject {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			// Create a new one
 			popularity := api.CreatePopularity(id)
-			return nil
 			_, insertErr := collection.InsertOne(context.TODO(), popularity)
 			if insertErr != nil {
 				panic(insertErr)

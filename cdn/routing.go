@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 var allowAnyGameServer = false
@@ -214,15 +215,15 @@ func getServerScript(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, msg(false, "No permissions!"), http.StatusForbidden)
 }
 
-func validExtension(extension string) bool {
+func validExtension(extension string) int {
 	for _, exts := range validExtensions {
-		for _, ext := range exts {
+		for i, ext := range exts {
 			if ext == extension {
-				return true
+				return i
 			}
 		}
 	}
-	return false
+	return -1
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -259,6 +260,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg(false, "Invalid user token"), http.StatusBadRequest)
 		return
 	}
+	userUploads := GetUploadData(userdata.Id)
+	if userUploads == nil {
+		http.Error(w, msg(false, "No user uploads!"), http.StatusInternalServerError)
+		return
+	}
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, msg(false, "Error retrieving file"), http.StatusBadRequest)
@@ -269,17 +275,21 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg(false, "Error closing file"), http.StatusInternalServerError)
 		return
 	}
-	extension := filepath.Ext(fileHeader.Filename)
-	if !validExtension(extension) {
+	fileName := fileHeader.Filename
+	extension := strings.ToLower(filepath.Ext(fileName))
+	uploadType := validExtension(extension)
+	if uploadType < 0 {
 		http.Error(w, msg(false, "Invalid extension"), http.StatusBadRequest)
 		return
 	}
-	filePath := bucket + "/" + userdata.Id + "/" + fileHeader.Filename
+	filePath := bucket + "/" + userdata.Id + "/" + fileName
 	err = UploadToS3(file, filePath)
 	if err != nil {
 		http.Error(w, "Failed to upload file", http.StatusInternalServerError)
 		return
 	}
+	userUploads.CreateUpload(fileName, uploadType, extension)
+	UpdateUploadData(userUploads)
 	w.WriteHeader(http.StatusOK)
 	_, errf := fmt.Fprintf(w, msg(true, "File uploaded!"))
 	if errf != nil {
