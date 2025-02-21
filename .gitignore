@@ -23,4 +23,6 @@ go.work.sum
 
 .idea/
 
-config.toml
+bin/
+config.toml*
+build.bat

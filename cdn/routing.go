@@ -26,18 +26,45 @@ func CreateRoutes(r *mux.Router) {
 		panic(err)
 	}
 	allowAnyGameServer = a.AllowAnyGameServer
+	r.Use(enableCORS)
+	r.HandleFunc("/", root).Methods("GET")
 	r.HandleFunc("/file/{userid}/{fileid}", getFile).Methods("GET")
 	r.HandleFunc("/file/{userid}/{fileid}/{filetoken}", getFileToken).Methods("GET")
 	r.HandleFunc("/file/{userid}/{fileid}/{gameServerId}/{gameServerToken}", getServerScript).Methods("GET")
 	r.HandleFunc("/upload", uploadHandler).Methods("POST")
 }
 
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func msg(success bool, msg string) string {
-	return "{\"success\": " + strconv.FormatBool(success) + ", \"" + msg + "\"}"
+	return "{\"success\": " + strconv.FormatBool(success) + ", \"message\": \"" + msg + "\"}"
+}
+
+func msg_result(success bool, msg string, result string) string {
+	return "{\"success\": " + strconv.FormatBool(success) + ", \"message\": \"" + msg + "\", \"result\": " + result + "}"
+}
+
+func root(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, errf := fmt.Fprintf(w, msg(true, "Server running!"))
+	if errf != nil {
+		fmt.Println(errf)
+	}
 }
 
 func returnFile(w http.ResponseWriter, fileMeta api.FileUpload) {
-	obj, err := GetObject(bucket + "/" + fileMeta.Key)
+	obj, err := GetObject(fileMeta.Key)
 	if err != nil {
 		http.Error(w, msg(false, "Failed to get file"), http.StatusInternalServerError)
 		return
@@ -216,8 +243,8 @@ func getServerScript(w http.ResponseWriter, r *http.Request) {
 }
 
 func validExtension(extension string) int {
-	for _, exts := range validExtensions {
-		for i, ext := range exts {
+	for i, exts := range validExtensions {
+		for _, ext := range exts {
 			if ext == extension {
 				return i
 			}
@@ -275,23 +302,23 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg(false, "Error closing file"), http.StatusInternalServerError)
 		return
 	}
-	fileName := fileHeader.Filename
-	extension := strings.ToLower(filepath.Ext(fileName))
+	extension := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	uploadType := validExtension(extension)
 	if uploadType < 0 {
 		http.Error(w, msg(false, "Invalid extension"), http.StatusBadRequest)
 		return
 	}
-	filePath := bucket + "/" + userdata.Id + "/" + fileName
+	fileUpload := userUploads.CreateUpload(uploadType, extension)
+	fileName := fileUpload.FileName
+	filePath := userdata.Id + "/" + fileName
 	err = UploadToS3(file, filePath)
 	if err != nil {
-		http.Error(w, "Failed to upload file", http.StatusInternalServerError)
+		http.Error(w, msg(false, "Failed to upload file"), http.StatusInternalServerError)
 		return
 	}
-	userUploads.CreateUpload(fileName, uploadType, extension)
 	UpdateUploadData(userUploads)
 	w.WriteHeader(http.StatusOK)
-	_, errf := fmt.Fprintf(w, msg(true, "File uploaded!"))
+	_, errf := fmt.Fprintf(w, msg_result(true, "File uploaded!", "{\"UploadData\": "+fileUpload.ToJSON()+"}"))
 	if errf != nil {
 		fmt.Println(errf)
 	}

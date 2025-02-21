@@ -5,11 +5,11 @@ import (
 )
 
 type UserUploads struct {
-	UserId  string       `json:"UserId"`
-	Uploads []FileUpload `json:"Uploads"`
+	UserId  string       `json:"UserId" bson:"UserId"`
+	Uploads []FileUpload `json:"Uploads" bson:"Uploads"`
 }
 
-func (u UserUploads) Contains(fileid string) bool {
+func (u *UserUploads) Contains(fileid string) bool {
 	contains := false
 	for _, upload := range u.Uploads {
 		if upload.FileId == fileid {
@@ -20,10 +20,9 @@ func (u UserUploads) Contains(fileid string) bool {
 	return contains
 }
 
-func (u UserUploads) CreateUpload(fileName string, uploadType int, ext string) {
+func (u *UserUploads) CreateUpload(uploadType int, ext string) FileUpload {
 	upload := FileUpload{
 		UserID:     u.UserId,
-		FileName:   fileName,
 		UploadType: uploadType,
 	}
 	upload.FileId = tools.NewId(4)
@@ -33,5 +32,8 @@ func (u UserUploads) CreateUpload(fileName string, uploadType int, ext string) {
 		}
 		upload.FileId = tools.NewId(4)
 	}
+	upload.FileName = upload.FileId + ext
 	upload.Key = u.UserId + "/" + upload.FileId + ext
+	u.Uploads = append(u.Uploads, upload)
+	return upload
 }

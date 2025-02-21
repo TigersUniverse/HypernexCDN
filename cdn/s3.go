@@ -17,7 +17,7 @@ func CreateSession(key string, secret string, endpoint string, region string, b 
 		Credentials:      credentials.NewStaticCredentials(key, secret, ""),
 		Endpoint:         aws.String(endpoint),
 		Region:           aws.String(region),
-		S3ForcePathStyle: aws.Bool(false),
+		S3ForcePathStyle: aws.Bool(true),
 	}))
 	s3Client = s3.New(sess)
 }

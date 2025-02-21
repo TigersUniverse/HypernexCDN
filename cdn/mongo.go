@@ -20,8 +20,7 @@ var avatarPopularityCollection *mongo.Collection
 var worldPopularityCollection *mongo.Collection
 
 func ConnectToMongo(uri string) {
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
+	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(nil)
 	client, err := mongo.Connect(opts)
 	if err != nil {
 		panic(err)
