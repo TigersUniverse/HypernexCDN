@@ -8,8 +8,10 @@ type FileUpload struct {
 	FileName   string `json:"FileName" bson:"FileName"`
 	UploadType int    `json:"UploadType" bson:"UploadType"`
 	Key        string `json:"Key" bson:"Key"`
+	Hash       string `json:"Hash" bson:"Hash"`
+	Size       int    `json:"Size" bson:"Size"`
 }
 
 func (upload FileUpload) ToJSON() string {
-	return "{\"UserId\": \"" + upload.UserID + "\", \"FileId\": \"" + upload.FileId + "\", \"FileName\": \"" + upload.FileName + "\", \"UploadType\": " + strconv.Itoa(upload.UploadType) + ", \"Key\": \"" + upload.Key + "\"}"
+	return "{\"UserId\": \"" + upload.UserID + "\", \"FileId\": \"" + upload.FileId + "\", \"FileName\": \"" + upload.FileName + "\", \"UploadType\": " + strconv.Itoa(upload.UploadType) + ", \"Key\": \"" + upload.Key + "\", \"Hash\": \"" + upload.Hash + "\", \"Size\": " + strconv.Itoa(upload.Size) + "}"
 }

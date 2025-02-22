@@ -308,7 +308,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg(false, "Invalid extension"), http.StatusBadRequest)
 		return
 	}
-	fileUpload := userUploads.CreateUpload(uploadType, extension)
+	success, fileUpload := userUploads.CreateUpload(uploadType, extension, file)
+	if !success {
+		http.Error(w, msg(false, "Failed to compute file"), http.StatusInternalServerError)
+		return
+	}
 	fileName := fileUpload.FileName
 	filePath := userdata.Id + "/" + fileName
 	err = UploadToS3(file, filePath)
