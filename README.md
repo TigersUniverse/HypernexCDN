@@ -18,6 +18,8 @@ AWS_region = 'us-1'
 AWS_bucket = 'hypernex'
 Mongo_URI = 'mongodb://mongodb-server'
 REDIS_Address = 'redis://redis.local:6379/0'
+PICS_Bucket = '/'
+PUBLIC_PICS = 'root-pics-dir/'
 ```
 
 Then run again and you should be able to see your CDN on `:3333`
@@ -64,6 +66,10 @@ At the top of the file, enter in your CDN information, then your normal Caddy co
 {
   cache {
     url 127.0.0.1:6379
+  }
+  regex {
+    exclude /randomImage
+    exclude /randomImage/*
   }
   ttl 1800s
 }
