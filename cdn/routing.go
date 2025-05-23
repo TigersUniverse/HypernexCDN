@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"io"
+	"math/rand"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -19,8 +21,10 @@ var validExtensions = [][]string{
 	{".hnw"},
 	{".js", ".lua"},
 }
+var public_pics string
+var reg *regexp.Regexp
 
-func CreateRoutes(r *mux.Router) {
+func CreateRoutes(r *mux.Router, p string) {
 	a, err := api.GetApiResponse[api_responses.AllowAnyGameServer]("allowAnyGameServer")
 	if err != nil {
 		panic(err)
@@ -32,6 +36,10 @@ func CreateRoutes(r *mux.Router) {
 	r.HandleFunc("/file/{userid}/{fileid}/{filetoken}", getFileToken).Methods("GET")
 	r.HandleFunc("/file/{userid}/{fileid}/{gameServerId}/{gameServerToken}", getServerScript).Methods("GET")
 	r.HandleFunc("/upload", uploadHandler).Methods("POST")
+	r.HandleFunc("/randomImage", randomImageHandler).Methods("GET")
+	r.HandleFunc("/picture/{picture}", pictureHandler).Methods("GET")
+	public_pics = p
+	reg = regexp.MustCompile(`^[\w\s-]+(\.[A-Za-z0-9]+)+$`)
 }
 
 func enableCORS(next http.Handler) http.Handler {
@@ -325,5 +333,76 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	_, errf := fmt.Fprintf(w, msg_result(true, "File uploaded!", "{\"UploadData\": "+fileUpload.ToJSON()+"}"))
 	if errf != nil {
 		fmt.Println(errf)
+	}
+}
+
+func randomImageHandler(w http.ResponseWriter, r *http.Request) {
+	pics, err := GetAllObjects(public_pics)
+	if err != nil {
+		http.Error(w, msg(false, "Failed to get pictures"), http.StatusInternalServerError)
+		return
+	}
+	keys := len(pics.Contents)
+	i := rand.Intn(keys)
+	picInfo := pics.Contents[i]
+	fileKeySplit := strings.Split(*picInfo.Key, "/")
+	fileName := fileKeySplit[len(fileKeySplit)-1]
+	http.Redirect(w, r, "picture/"+fileName, http.StatusFound)
+}
+
+func pictureHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	picName := vars["picture"]
+	if strings.Contains(picName, "?") {
+		http.Error(w, msg(false, "Invalid path"), http.StatusBadRequest)
+		return
+	}
+	if strings.Contains(picName, "$") {
+		http.Error(w, msg(false, "Invalid path"), http.StatusBadRequest)
+		return
+	}
+	if strings.Contains(picName, "%") {
+		http.Error(w, msg(false, "Invalid path"), http.StatusBadRequest)
+		return
+	}
+	if strings.Contains(picName, "..") {
+		http.Error(w, msg(false, "Invalid path"), http.StatusBadRequest)
+		return
+	}
+	if strings.Contains(picName, "/") {
+		http.Error(w, msg(false, "Invalid path"), http.StatusBadRequest)
+		return
+	}
+	valid := reg.MatchString(picName)
+	if !valid {
+		http.Error(w, msg(false, "Invalid pic name"), http.StatusBadRequest)
+		return
+	}
+	obj, err := GetExactObject(public_pics + "/" + picName)
+	if err != nil {
+		http.Error(w, msg(false, "Failed to get file"), http.StatusInternalServerError)
+		return
+	}
+	noError := true
+	defer func(Body io.ReadCloser) {
+		err2 := Body.Close()
+		if err2 != nil {
+			http.Error(w, msg(false, "Failed to get file"), http.StatusInternalServerError)
+			noError = false
+			return
+		}
+	}(obj.Body)
+	if !noError {
+		return
+	}
+	if obj.ContentLength != nil {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", *obj.ContentLength))
+	}
+	w.Header().Set("Content-Disposition", "attachment; filename="+picName)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	_, err = io.Copy(w, obj.Body)
+	if err != nil {
+		http.Error(w, msg(false, "Error sending file"), http.StatusInternalServerError)
+		return
 	}
 }

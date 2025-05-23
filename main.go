@@ -21,7 +21,7 @@ func main() {
 	cdn.StartRedisClient(config.REDIS_Address)
 	api.Initialize(config.API_Server)
 	router := mux.NewRouter()
-	cdn.CreateRoutes(router)
+	cdn.CreateRoutes(router, config.PUBLIC_PICS)
 	err := http.ListenAndServe(":3333", router)
 
 	if errors.Is(err, http.ErrServerClosed) {
