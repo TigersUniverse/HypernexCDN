@@ -14,6 +14,7 @@ type CDNConfig struct {
 	AWS_bucket    string
 	Mongo_URI     string
 	REDIS_Address string
+	PICS_Bucket   string
 	PUBLIC_PICS   string
 }
 

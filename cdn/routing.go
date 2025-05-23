@@ -21,10 +21,11 @@ var validExtensions = [][]string{
 	{".hnw"},
 	{".js", ".lua"},
 }
+var pics_bucket string
 var public_pics string
 var reg *regexp.Regexp
 
-func CreateRoutes(r *mux.Router, p string) {
+func CreateRoutes(r *mux.Router, b string, p string) {
 	a, err := api.GetApiResponse[api_responses.AllowAnyGameServer]("allowAnyGameServer")
 	if err != nil {
 		panic(err)
@@ -36,9 +37,12 @@ func CreateRoutes(r *mux.Router, p string) {
 	r.HandleFunc("/file/{userid}/{fileid}/{filetoken}", getFileToken).Methods("GET")
 	r.HandleFunc("/file/{userid}/{fileid}/{gameServerId}/{gameServerToken}", getServerScript).Methods("GET")
 	r.HandleFunc("/upload", uploadHandler).Methods("POST")
-	r.HandleFunc("/randomImage", randomImageHandler).Methods("GET")
-	r.HandleFunc("/picture/{picture}", pictureHandler).Methods("GET")
+	pics_bucket = b
 	public_pics = p
+	if pics_bucket != "" {
+		r.HandleFunc("/randomImage", randomImageHandler).Methods("GET")
+		r.HandleFunc("/picture/{picture}", pictureHandler).Methods("GET")
+	}
 	reg = regexp.MustCompile(`^[\w\s-]+(\.[A-Za-z0-9]+)+$`)
 }
 
@@ -337,7 +341,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func randomImageHandler(w http.ResponseWriter, r *http.Request) {
-	pics, err := GetAllObjects(public_pics)
+	pics, err := GetAllObjects(pics_bucket, public_pics)
 	if err != nil {
 		http.Error(w, msg(false, "Failed to get pictures"), http.StatusInternalServerError)
 		return
@@ -378,7 +382,7 @@ func pictureHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg(false, "Invalid pic name"), http.StatusBadRequest)
 		return
 	}
-	obj, err := GetExactObject(public_pics + "/" + picName)
+	obj, err := GetExactObject(pics_bucket, public_pics+picName)
 	if err != nil {
 		http.Error(w, msg(false, "Failed to get file"), http.StatusInternalServerError)
 		return

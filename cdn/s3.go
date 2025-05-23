@@ -22,10 +22,10 @@ func CreateSession(key string, secret string, endpoint string, region string, b 
 	s3Client = s3.New(sess)
 }
 
-func GetAllObjects(path string) (*s3.ListObjectsOutput, error) {
+func GetAllObjects(bucket string, path string) (*s3.ListObjectsOutput, error) {
 	result, err := s3Client.ListObjects(&s3.ListObjectsInput{
-		Bucket: aws.String("/"),
-		Prefix: aws.String(path + "/"),
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(path),
 	})
 	if err != nil {
 		return nil, err
@@ -33,10 +33,10 @@ func GetAllObjects(path string) (*s3.ListObjectsOutput, error) {
 	return result, nil
 }
 
-func GetExactObject(path string) (*s3.GetObjectOutput, error) {
+func GetExactObject(bucket string, key string) (*s3.GetObjectOutput, error) {
 	result, err := s3Client.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String("/"),
-		Key:    aws.String(path),
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
 	})
 	if err != nil {
 		return nil, err
