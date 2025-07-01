@@ -14,6 +14,11 @@ import (
 	"strings"
 )
 
+const (
+	MAX_UPLOAD_SIZE = 1 << 30
+	MAX_MEM         = 32 << 20
+)
+
 var allowAnyGameServer = false
 var validExtensions = [][]string{
 	{".jpg", ".jpeg", ".gif", ".png", ".mp4"},
@@ -266,13 +271,14 @@ func validExtension(extension string) int {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MAX_UPLOAD_SIZE)
 	if r.Method != http.MethodPost {
 		http.Error(w, msg(false, "Invalid request method"), http.StatusMethodNotAllowed)
 		return
 	}
-	err := r.ParseMultipartForm(1 << 30)
+	err := r.ParseMultipartForm(MAX_MEM)
 	if err != nil {
-		http.Error(w, msg(false, "Request too large!"), http.StatusBadRequest)
+		http.Error(w, msg(false, "Request too large!"), http.StatusRequestEntityTooLarge)
 		return
 	}
 	userid := r.FormValue("userid")
@@ -309,9 +315,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg(false, "Error retrieving file"), http.StatusBadRequest)
 		return
 	}
-	err = file.Close()
-	if err != nil {
-		http.Error(w, msg(false, "Error closing file"), http.StatusInternalServerError)
+	if fileHeader.Size > MAX_UPLOAD_SIZE {
+		http.Error(w, msg(false, "File too large"), http.StatusRequestEntityTooLarge)
 		return
 	}
 	extension := strings.ToLower(filepath.Ext(fileHeader.Filename))
@@ -325,6 +330,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg(false, "Failed to compute file"), http.StatusInternalServerError)
 		return
 	}
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		http.Error(w, msg(false, "Failed to seek file"), http.StatusInternalServerError)
+		return
+	}
 	fileName := fileUpload.FileName
 	filePath := userdata.Id + "/" + fileName
 	err = UploadToS3(file, filePath)
@@ -333,6 +343,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	UpdateUploadData(userUploads)
+	err = file.Close()
+	if err != nil {
+		http.Error(w, msg(false, "Error closing file"), http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	_, errf := fmt.Fprintf(w, msg_result(true, "File uploaded!", "{\"UploadData\": "+fileUpload.ToJSON()+"}"))
 	if errf != nil {
