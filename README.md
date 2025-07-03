@@ -46,12 +46,12 @@ After you install xcaddy, you can simply run xcaddy and provide the URLs for the
 
 > [!WARNING]
 >
-> You **MUST** select a storage provider. For this example, we will be using `go-redis`, but you can select whichever one best suits your needs.
+> You **MUST** select a storage provider. For this example, we will be using `simplefs`, but you can select whichever one best suits your needs.
 
-Simply run this command to build Caddy with the cache-handler and go-redis modules
+Simply run this command to build Caddy with the cache-handler and simplefs modules
 
 ```bash
-xcaddy build --with github.com/caddyserver/cache-handler --with github.com/darkweak/storages/go-redis/caddy
+xcaddy build --with github.com/darkweak/souin/plugins/caddy --with github.com/darkweak/storages/simplefs/caddy
 ```
 
 After Caddy is built, it will be output to `./caddy`
@@ -60,12 +60,17 @@ After Caddy is built, it will be output to `./caddy`
 
 In the same directory as your caddy executable, create a new file called `Caddyfile`
 
-At the top of the file, enter in your CDN information, then your normal Caddy configuration with the cache module referenced. Below is an example using go-redis installed locally.
+At the top of the file, enter in your CDN information, then your normal Caddy configuration with the cache module referenced. Below is an example using simplefs with the path set to `./cache`.
 
 ```caddy
 {
   cache {
-    url 127.0.0.1:6379
+    simplefs {
+      configuration {
+          size 10000
+          path cache
+      }
+    }
   }
   regex {
     exclude /randomImage
@@ -75,7 +80,9 @@ At the top of the file, enter in your CDN information, then your normal Caddy co
 }
 examplecdn.yoururl.com {
   cache
-  reverse_proxy :3333
+  reverse_proxy :3333 {
+      flush_interval -1
+  }
 }
 ```
 
